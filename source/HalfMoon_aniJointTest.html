@@ -1,0 +1,205 @@
+<html>
+
+<head>
+<title>HalfMoon v0.0.2</title>
+
+<style>
+	body {
+		background-color: rgb(200,200,200);
+		width: 100%;
+		height: 100%;
+		margin: 0px;
+		overflow: hidden;
+	}
+    #glcanvas {
+        width: 100%;
+        height: 100%;
+      }
+</style>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<script type="text/javascript" src="jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="gl-matrix.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="shinei3d/HalfMoon.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/event.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/eventDefine.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/obj.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/camera.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/loader.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/dataManager.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/axis.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/shape.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/transform.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/Graphics/graphics.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/shader.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/renderer.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/renderHelper.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/material.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/texture.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/Obj/shapeHelper.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/pangpang.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quad.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadFullScreen.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadSSAO.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadSelect.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadRenderBuffer.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/Animation/aniSource.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/aniChannel.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animation.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/joint.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/aniReader.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/aniHelper.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/UI/UIMain.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIBase.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIObject.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIBtn.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement3D.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIDraggable.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIPanel.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIScenePanel.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIHelper.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/Geometry/boundingBox.js"></script>
+
+
+
+</head>
+
+<script type = "text/javascript">
+	function main(){
+
+	    var canvas = document.getElementById("glcanvas");
+
+	    //canvas.clientWidth and canvas.clientHeight is the size of canvas
+	    //canvas.width and canvas.height is the size of draw buffer
+		//canvas.width == gl.vewportWidth
+	    canvas.width = canvas.clientWidth;
+	    canvas.height = canvas.clientHeight;
+	    
+		var cam = new Camera( {isPersp:true,fov:Math.degree2Radian(45), near:0.1,far:10000.0,name:"Persp",
+			width: canvas.width,height: canvas.height});
+
+		var rendererParams = { ID: "renderView", canvas: canvas, 
+	              Height: canvas.clientWidth, Width: canvas.clientHeight,cam:cam};
+		
+		var renderer = new Renderer(rendererParams);
+		renderer.Set({blend:false,bgColor : [0.05,0.05,0.05,1.0]});
+		
+		HalfMoon.initialize(renderer);
+		
+		HalfMoon.loader.OnFinishLoadingScript = function(){
+
+		    cam.LookAt([50,50,50],[0,0,0],[0,1,0]);
+
+
+	 		var _uiMain = new UIMain(canvas,new Camera({isPersp:false,fov:Math.degree2Radian(90), near:1.0,far:1000.0,
+ 				name:"UICam",width: canvas.width,height: canvas.height}));
+	 		/* 
+ 	 		var _uiElement = new UIElement("testElement",64,64,"images/moon.gif",HalfMoon.materials["quad"].clone());
+			_uiMain.AddChild(_uiElement); 
+			
+			_uiElement.transform.MoveTo([0,30,0]); 
+	 		
+			var videoBtn =  new UIBtn("video/mocap.mp4Btn",150, 200, "video/mocap.mp4");
+	 		
+			_uiMain.AddChild(videoBtn);
+			
+			  */
+			 
+			 
+
+		 
+
+			
+			var aniReader = new AniReader();
+			var aniPath = HalfMoon.sourcePath+"/aniSource" ;
+			var root,asfData;
+			
+			HalfMoon.asyncLoader("GET",aniPath+"/08.asf", function (id,workerID,sMessage) {
+			    console.log(sMessage);
+			    asfData = aniReader.parseASF(sMessage);
+			    
+		        var aniParams ={name:"root",position: [0,0,0], rotation:[0,0,0]};
+		        var root = new Joint(aniParams);
+
+				HalfMoon.drawableObj.push(root);
+				root.isDrawable = true;
+				var fullNmList = {};
+				fullNmList[root.name] = root.name;
+				BuildASFRecursively(root,asfData.hierarchy,asfData.bonedata,fullNmList);
+				
+			     HalfMoon.asyncLoader("GET",aniPath+"/05_18.amc", function (id,workerID,sMessage) {
+				    var amcData = aniReader.parseAMC(sMessage,asfData);
+				    var frames =Amc2Frames(amcData);
+				    var channels = Frames2Channels(frames);
+				    ASFQuat2JointQuat(channels,fullNmList);
+				    //delete 
+				    amcData.length=0;
+				    
+				    for(var i in channels){//i is jointNm
+				    	//continue;
+				    	var targetJoint = GetObjByFullNm(fullNmList[i]);
+				    	var ani = new Animation(i+"Ani",targetJoint);
+						for(var j in channels[i]){// j is dof
+							var aniRawData = new AniRawData(i+j,channels[i][j]);
+							switch(j) {
+								case 'tx':
+									ani.Import(new AniChannel(aniRawData,targetJoint.transform.name,"SetTx")); 
+									break;
+								case 'ty':
+									ani.Import(new AniChannel(aniRawData,targetJoint.transform.name,"SetTy")); 
+									break;
+								case 'tz':
+									ani.Import(new AniChannel(aniRawData,targetJoint.transform.name,"SetTz")); 
+									break;
+
+								case 'quat4':
+									ani.Import(new AniChannel(aniRawData,targetJoint.transform.name,"SetQuat"));
+									break;  
+							}//end of switch
+						}//end of channels dof
+						ani.playstate = ani.PLAYSTATE.play; 
+				    }//end of for jointNm
+				});//end of asyncLoader AMC 
+		    });//end of asyncLoader ASF 
+			
+			 
+		};
+		
+		HalfMoon.time.isRunning = true;
+		
+		HalfMoon.tick();
+		
+		
+		
+		
+		
+		function resizeCanvas() {
+			   // only change the size of the canvas if the size it's being displayed
+			   // has changed.
+			   if (canvas.width != canvas.clientWidth ||
+			       canvas.height != canvas.clientHeight) {
+				     // Change the size of the canvas to match the size it's being displayed
+				     canvas.width = canvas.clientWidth;
+				     canvas.height = canvas.clientHeight; 
+				     //HalfMoon.UserEvent.publish("CanvasResize:",[canvas.width,canvas.height]);
+				     HalfMoon.SysEvent.Publish("CanvasResize:",[canvas.width,canvas.height]);
+				     //renderer.initialize(rendererParams);
+			   }
+		};
+		window.addEventListener( 'resize', resizeCanvas, false );
+	};
+
+
+</script>
+<body onload="main();">
+    <canvas id="glcanvas" style="border: none;" draggable="true""></canvas>
+</body>
+
+</html>

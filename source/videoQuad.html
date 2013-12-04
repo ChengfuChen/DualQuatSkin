@@ -1,0 +1,240 @@
+<html>
+
+<head>
+<title>HalfMoon v0.0.2</title>
+
+<style>
+	body {
+		background-color: rgb(200,200,200);
+		width: 100%;
+		height: 100%;
+		margin: 0px;
+		overflow: hidden;
+	}
+    #glcanvas {
+        width: 100%;
+        height: 100%;
+      }
+</style>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<script type="text/javascript" src="jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="gl-matrix.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="dist/jquery.hammer.js"></script>
+
+
+<script type="text/javascript" src="shinei3d/HalfMoon.js"></script>
+
+
+<script type="text/javascript" src="HalfMoon_src/Core/event.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/eventDefine.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/dataManager.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/obj.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/camera.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/loader.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/shape.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/transform.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/Graphics/graphics.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/shader.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/renderer.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/renderHelper.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/material.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/texture.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/Obj/shapeHelper.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/pangpang.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/pangpangUI.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quad.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadFullScreen.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadSSAO.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadSelect.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadRenderBuffer.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/Animation/aniSource.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/aniChannel.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animation.js"></script>
+
+
+<script type="text/javascript" src="HalfMoon_src/UI/UIHelper.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIMain.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIBase.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIObject.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIBtn.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement3D.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIDraggable.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIPanel.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIScenePanel.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/Geometry/boundingBox.js"></script>
+
+
+
+</head>
+
+<script type = "text/javascript">
+	function main(){
+
+	    var canvas = document.getElementById("glcanvas");
+
+	    //canvas.clientWidth and canvas.clientHeight is the size of canvas
+	    //canvas.width and canvas.height is the size of draw buffer
+		//canvas.width == gl.vewportWidth
+	    canvas.width = canvas.clientWidth;
+	    canvas.height = canvas.clientHeight;
+	    
+		var cam = new Camera( {isPersp:true,fov:Math.degree2Radian(45), near:0.1,far:1000.0,name:"Persp",
+			width: canvas.width,height: canvas.height});
+		
+		var rendererParams = { ID: "renderView", canvas: canvas, 
+	              Height: canvas.clientWidth, Width: canvas.clientHeight,cam:cam};
+		
+		var renderer = new Renderer(rendererParams);
+		renderer.Set({blend:false,bgColor : [0.05,0.05,0.05,1.0]});
+		
+		HalfMoon.initialize(renderer);
+		
+		HalfMoon.loader.OnFinishLoadingScript = function(){
+	    
+ 	 		var _uiMain = new UIMain(canvas,new Camera({isPersp:true,
+ 	 					fov:Math.degree2Radian(90), near:1.0,far:1000.0,
+ 						name:"UICam",width: canvas.width,height: canvas.height}));
+			var movies = [];
+			movies.push({movie:"video/budda.mp4",link:"budda.html"});
+			movies.push({movie:"video/fluid.mp4",link:"fluid.html"});
+			movies.push({movie:"video/mocap.mp4",link:"mocap.html"});
+			
+			function circleTrans(out,fov,R,numItem){
+				var theta = Math.degree2Radian(90-fov/2.0),
+					d = R*Math.sin(theta),
+				 	delta = Math.degree2Radian(fov/(numItem+1));
+				
+				for(var i=0;i<=numItem+1;i++){
+					var alpha = theta+ delta*i;
+					var position = [R*Math.cos(alpha),
+					                0,-R*Math.sin(alpha)];
+					out.push({position:position,rotationY:alpha-Math.degree2Radian(90)});
+				}
+				
+			}
+	        var pos_angle = [];
+	        circleTrans(pos_angle,90,500,3);
+			function addBtn(moviePath,pos,angle,link){
+				
+		 		var videoBtn =  new UIBtn(moviePath+"Btn",150, 200, moviePath);
+		 		
+				_uiMain.AddChild(videoBtn);
+				
+				vec3.set(videoBtn.transform.pivot,-75,100,0);
+				videoBtn.transform.MoveTo(pos);
+				videoBtn.transform.Rotate(angle);
+				//videoBtn.SetRotation([0,Math.degree2Radian(30),0]);
+		 		//videoBtn.SetTranslate(pos);
+		 		//videoBtn.SetDepth(-2);
+		 		var startScale = vec3.create(),
+		 		 	endScale = vec3.create(),
+		 		 	curScale=vec3.create(),
+		 		 	scaleConst = vec3.create();
+		 		
+		 		vec3.set(startScale,1.0,1.0,1.0);
+		 		vec3.set(endScale,1.5,1.5,1.5);
+		 		vec3.set(scaleConst,0.2,0.2,0.2);
+		 		var rot=0;
+		 		
+		 		function onClick(){
+		 			//window.location.href = "www.baidu.com";
+		 			window.open(
+		 					  link,
+		 					  '_blank' // <- This is what makes it open in a new window.
+		 					);
+		 		}
+		 		videoBtn.OnBtnClickEvent.subscribe("OnBtnClick",this,onClick);
+		 		
+		 		function onRollIn(){
+		 			
+			 		var animation = function(time){
+			 			var tmp = vec3.clone(videoBtn.GetScale());
+			 			
+			 			vec3.sub(curScale,endScale,tmp);
+			 			vec3.multiply(curScale,scaleConst,curScale);
+			 			vec3.add(curScale,tmp,curScale);
+			 			//rot++;
+			 			//videoBtn.transform.Rotate([0,Math.degree2Radian(rot),0]);
+			 			videoBtn.SetScale(curScale);
+			 			if(Math.abs(curScale[0]-endScale[0])<0.01){
+			 				videoBtn.texture.video.play();
+			 				return true;
+			 			}
+					};
+					var ani = new Animation("test",videoBtn);
+					ani.Set(animation);
+				
+					ani.playstate = ani.PLAYSTATE.play;
+		 			
+		 		};
+		 		videoBtn.OnBtnRollInEvent.subscribe("OnBtnRollIn",this,onRollIn);
+		 		
+
+		 		function onRollOut(){
+		 			
+			 		var animation = function(time){
+			 			videoBtn.SetScale([1,1]);
+			 			videoBtn.texture.video.pause();
+			 			return true;
+					};
+					var ani = new Animation("test",videoBtn);
+					ani.Set(animation);
+				
+					ani.playstate = ani.PLAYSTATE.play;
+		 			
+		 		};
+		 		videoBtn.OnBtnRollOutEvent.subscribe("OnBtnRollOut",this,onRollOut);
+		 		
+			}//end of addBtn function
+			
+			var numOfMovies = movies.length;
+			for(var i=0;i<movies.length;i++){
+				var pos = pos_angle[i+1].position;
+				pos[1]-=100;
+				pos[2]+=150;
+				
+				var angle = [0,pos_angle[i+1].rotationY,0];
+				addBtn(movies[i].movie,pos,angle,movies[i].link);
+			}
+			//addBtn("video/mocap.mp4",[-130,0,-200],[0,Math.degree2Radian(45),0]);
+			//addBtn("video/mocap.mp4",[0,0,-200],[0,Math.degree2Radian(0),0]);
+			cam.transform.MoveTo([0,0,300]);
+		};
+		
+		HalfMoon.time.isRunning = true;
+		
+		HalfMoon.tick();
+		
+		function resizeCanvas() {
+			   // only change the size of the canvas if the size it's being displayed
+			   // has changed.
+			   if (canvas.width != canvas.clientWidth ||
+			       canvas.height != canvas.clientHeight) {
+				     // Change the size of the canvas to match the size it's being displayed
+				     canvas.width = canvas.clientWidth;
+				     canvas.height = canvas.clientHeight; 
+				     //HalfMoon.UserEvent.publish("CanvasResize:",[canvas.width,canvas.height]);
+				     HalfMoon.SysEvent.Publish("CanvasResize:",[canvas.width,canvas.height]);
+				     //renderer.initialize(rendererParams);
+			   }
+		};
+		window.addEventListener( 'resize', resizeCanvas, false );
+	};
+</script>
+<body onload="main();">
+	<div> <h1>asfasdfa sdfa sdfasd fasdf asdf </h1>
+		<a title="" href="video/budda.mp4" target="_blank">video</a>
+	</div>
+    <canvas id="glcanvas" style="border: none;" draggable="true""></canvas>
+
+    <video width="320" height="240" controls autoplay>
+</body>
+
+</html>

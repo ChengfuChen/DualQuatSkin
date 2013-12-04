@@ -1,0 +1,7 @@
+{
+    "Row" : [{ "name" : "tables", "objects" : ["more.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "more.png"], "colPointer" : 1 }, 
+             { "name" : "chairs", "objects" : ["more.png", "chair.png", "chair.png", "chair.png", "chair.png", "chair.png", "chair.png", "chair.png", "chair.png", "chair.png", "chair.png", "chair.png", "chair.png", "chair.png", "more.png"], "colPointer" : 1 },
+             { "name" : "tables2", "objects" : ["more.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "table.png", "more.png"], "colPointer" : 1 }],
+    "rowPointer" : 0,
+    "Path" : "images/"
+}

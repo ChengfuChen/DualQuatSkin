@@ -1,0 +1,643 @@
+<html>
+
+<head>
+<title>HalfMoon v0.0.2</title>
+
+<style>
+	body {
+		background-color: rgb(200,200,200);
+		width: 100%;
+		height: 100%;
+		margin: 0px;
+		overflow: hidden;
+	}
+    #glcanvas {
+        width: 100%;
+        height: 100%;
+      }
+</style>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<script type="text/javascript" src="jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="gl-matrix.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="dist/jquery.hammer.js"></script>
+<script type="text/javascript" src="HalfMoon_src/HalfMoon.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/event.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/eventDefine.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/dataManager.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/graphics.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/shader.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/renderer.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/renderHelper.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/material.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/texture.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/obj.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/camera.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/loader.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/shapeHelper.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/pangpang.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/pangpangUI.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quad.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadFullScreen.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadSSAO.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadSelect.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadRenderBuffer.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/shape.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/transform.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animationSource.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animationChannel.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animation.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/UI/UIMain.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIBase.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIObject.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIBtn.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement3D.js"></script>
+<script type="text/javascript" src="shinei3d/ModelBtn.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIDraggable.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIPanel.js"></script>
+<script type="text/javascript" src="shinei3d/ModelPanel.js"></script>
+<script type="text/javascript" src="shinei3d/PopupPanel.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/UI/UIScenePanel.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Geometry/boundingBox.js"></script>
+
+<script type="text/javascript" src="shinei3d/wall.js"></script>
+
+
+</head>
+
+<script type = "text/javascript">
+	function main(){
+
+	    var canvas = document.getElementById("glcanvas");
+
+	    //canvas.clientWidth and canvas.clientHeight is the size of canvas
+	    //canvas.width and canvas.height is the size of draw buffer
+		//canvas.width == gl.vewportWidth
+	    canvas.width = canvas.clientWidth;
+	    canvas.height = canvas.clientHeight;
+	    
+		var cam = new Camera( {isPersp:true,fov:Math.degree2Radian(45), near:0.1,far:10000.0,name:"Persp",
+			width: canvas.width,height: canvas.height});
+		cam.LookAt([300,300,500],[0,0,0],[0,1,0]);
+	 	
+		var rendererParams = { ID: "renderView", canvas: canvas, 
+	              Height: canvas.clientWidth, Width: canvas.clientHeight,cam:cam};
+		
+		var renderer = new Renderer(rendererParams);
+		renderer.Set({blend:false,bgColor : [0,0,0,1]});
+		
+		HalfMoon.initialize(renderer);
+		var sceneObjs = [];
+		HalfMoon.loader.OnFinishLoadingScript = function(){
+			
+				var self = this;
+				var newModel = null;
+				var quadOnActive = null;// for detacting which quad is active
+										// we can rotate the model later
+				var dragState = {
+					NONE:"initial state",
+					//MODELBTNDRAG:"on model btn dragging",
+					QUADENTER:"on entering the quad",
+					QUADROLLOVER:"dragging over the quad",
+					QUADEXIT:"exiting the quad, the mouse"+
+							"dragging on the empty scene"
+				};	
+				
+				var state = dragState.NONE;
+				var NewModel = function(obj){
+					
+					return obj.clone(obj.name+"UI",obj,true);
+					
+				}
+				
+				var sceneObjDragOver = function(e){
+					//this.obj.isDrawable = true;
+					//console.log("drag over "+this.name);
+					if(state==dragState.NONE){
+						state = dragState.QUADEXIT;
+
+						console.log("NULL ---> Exit");
+						return;
+					}
+					var result = self.sceneState();//Get actived quad
+					if(!result){// if no quad is active
+						if(state==dragState.QUADENTER||
+								state==dragState.QUADROLLOVER){
+							console.log("Enter ---> Exit");
+							//Show garbage icon
+							newModel.isDrawable = false;
+						}
+						quadOnActive = null;
+						state = dragState.QUADEXIT;
+					}
+					else{
+						quadOnActive = result;
+						
+						if(state == dragState.QUADEXIT){
+							//Show model
+							newModel.isDrawable = true;
+							//Hide the Garbage icon Here
+							var position = result.GetPosition();
+							newModel.transform.MoveTo(position);
+							console.log("Exit ---> Enter");
+							state = dragState.QUADENTER;
+							return;
+						}else {//state == dragState.QUADENTER
+							//On rollover: moving the model
+							var position = result.GetPosition();
+							console.log("model:POSITION:" + newModel.transform.position[0]+","+
+									 newModel.transform.position[1]+","+
+									 newModel.transform.position[2]);
+							newModel.transform.MoveTo(position);
+							console.log("model:MOVETO:" + position[0]+","+
+									position[1]+","+
+									position[2]);
+							
+							state = dragState.QUADROLLOVER;
+							//console.log("ROLLOVER");
+						}
+					}
+					
+					
+					//newModel(this.obj);
+				};
+
+				var sceneObjDragStart = function(e){
+					newModel = e;
+					state = dragState.QUADENTER;
+				};
+	
+				var sceneObjDragEnd = function(e){
+					if(state==dragState.QUADENTER){
+						console.log("rarely happen!");
+					}
+					else if(state==dragState.QUADROLLOVER){
+						console.log("drop on Quad");
+					}
+					else if(state==dragState.QUADEXIT){
+						console.log("drop on Empty scene");
+						newModel.del();
+						newModel = null;
+					}
+					state=dragState.NONE;
+				};
+				var draggableBtnDragEnding = function(e){
+					if(state==dragState.QUADENTER){
+						console.log("rarely happen!");
+					}
+					else if(state==dragState.QUADROLLOVER){
+						this.modelBtnState = this.draggable.draggableState = "NoMoving";
+						console.log("drop on Quad");
+					}
+					else if(state==dragState.QUADEXIT){
+						console.log("drop on Empty scene");
+						if(newModel != null)
+							newModel.del();
+						newModel = null;
+					}
+					state=dragState.NONE;
+					quadOnActive = null;
+					HalfMoon.SysEvent.Subscribe("OnSceneObjDragOver",newModel,sceneObjDragOver);
+					HalfMoon.SysEvent.Subscribe("OnSceneObjDragStart",newModel,sceneObjDragStart);
+					HalfMoon.SysEvent.Subscribe("OnSceneObjDragEnd",newModel,sceneObjDragEnd);
+					newModel = null;
+				};
+				var draggableBtnDragging = function(e){
+					//this.obj.isDrawable = true;
+					//console.log("drag over "+this.name);
+					if(state==dragState.NONE){
+						state = dragState.QUADEXIT;
+
+						console.log("NULL ---> Exit");
+						return;
+					}
+					var result = self.sceneState();//Get actived quad
+					if(!result){// if no quad is active
+						if(state==dragState.QUADENTER||
+								state==dragState.QUADROLLOVER){
+							//newModel.del();
+							console.log("Enter ---> Exit");
+							this.draggable.isDrawable = true;
+							newModel.isDrawable = false;
+						}
+						quadOnActive = null;
+						state = dragState.QUADEXIT;
+					}
+					else{
+						quadOnActive = result;
+						
+						if(state == dragState.QUADEXIT){
+							//New Model
+							if(newModel==null)
+								newModel = NewModel(this.obj);
+							newModel.isDrawable = true;
+							var position = result.GetPosition();
+							newModel.transform.MoveTo(position);
+							console.log("Exit ---> Enter");
+							state = dragState.QUADENTER;
+							this.draggable.isDrawable = false;
+							return;
+						}else {//state == dragState.QUADENTER
+							//On rollover: moving the model
+							var position = result.GetPosition();
+							newModel.transform.MoveTo(position);
+							state = dragState.QUADROLLOVER;
+							console.log("ROLLOVER");
+						}
+					}
+					
+					
+					//newModel(this.obj);
+				};
+				
+				/// onQuadDragOver is for rotating object
+				// in order to match the scene orientation
+				var onQuadDragOver = function(e){
+					if(!(quadOnActive&&newModel))//Get from "draggableBtnDragging"
+						return;
+					
+					else if(quadOnActive.name=="Wall2")
+						newModel.transform.
+								RotateTo([0,Math.degree2Radian(90),0]);
+
+					else if(quadOnActive.name=="Wall0")
+						newModel.transform.
+								RotateTo([0,Math.degree2Radian(0),0]);
+
+					else if(quadOnActive.name=="Wall1")
+						newModel.transform.
+								RotateTo([0,Math.degree2Radian(0),0]);
+					
+					//console.log("drag over "+this.name);
+				};
+ 				var quads = [],quad;
+/*  		  		quad = new QuadSelect("QuadSelect0",cam,500,500,50);
+ 		  		HalfMoon.SysEvent.subscribe("ScenePanel:OnMouseDragOver",this,onQuadDragOver);
+ 		  		quad.transform.Rotate([Math.degree2Radian(-90),0,0]); 
+				quad.transform.MoveTo([-253,0,-250]);
+		  		quads.push(quad); 
+		  		
+				quad = new QuadSelect("QuadSelect1",cam,500,200,100);
+				HalfMoon.SysEvent.subscribe("ScenePanel:OnMouseDragOver",this,onQuadDragOver);
+ 		  		quad.transform.MoveTo([-253,202,-250]);
+				quads.push(quad);
+				
+  		  		quad = new QuadSelect("QuadSelect2",cam,500,200,100);
+  		  		HalfMoon.SysEvent.subscribe("ScenePanel:OnMouseDragOver",this,onQuadDragOver);
+		  		quad.transform.Rotate([0,Math.degree2Radian(90),0]);//????????????????
+				quad.transform.MoveTo([-253,202,250]); 
+				quads.push(quad);   */
+				
+				var wall;
+				wall = new Wall("Wall0",500,500,50,"models/woodenFloor.png");
+ 		  		HalfMoon.SysEvent.Subscribe("ScenePanel:OnMouseDragOver",this,onQuadDragOver);
+ 		  		wall.transform.Rotate([Math.degree2Radian(-90),0,0]); 
+				wall.transform.MoveTo([-250,0,-250]);
+		  		quads.push(wall); 
+		  		
+		  		wall = new Wall("Wall1",500,200,100,"models/PlasterWhiteCol.png");
+				HalfMoon.SysEvent.Subscribe("ScenePanel:OnMouseDragOver",this,onQuadDragOver);
+ 		  		wall.transform.MoveTo([-250,200,-250]);
+				quads.push(wall);
+				
+  		  		wall = new Wall("Wall2",500,200,100,"models/PlasterWhiteCol.png");
+  		  		HalfMoon.SysEvent.Subscribe("ScenePanel:OnMouseDragOver",this,onQuadDragOver);
+		  		wall.transform.Rotate([0,Math.degree2Radian(90),0]);//????????????????
+				wall.transform.MoveTo([-250,200,250]); 
+				quads.push(wall);  
+				 
+			
+			
+				this.sceneState = function(){
+					var result;
+					if(!HalfMoon.scenePanel.isActive)
+						return null;//escape when scenePanel is none active
+					for(var i in quads)
+						if(quads[i].state == quads[i].quadState.ENTER)
+							result = quads[i];
+					return result;
+				}
+			
+			
+/*-----------------------------------3D UI testing-------------------------------------------*/
+
+		var _uiMain = new UIMain(canvas,new Camera({isPersp:false,fov:Math.degree2Radian(90), near:1.0,far:1000.0,
+ 				name:"UICam",width: canvas.width,height: canvas.height}));
+	 	
+	 	var modelPanel = new ModelPanel("ModelPanel", 0.92*canvas.width,0.3*canvas.height, 
+				"images/gray.png", 0.06*canvas.width,[-0.45*canvas.width,-0.35*canvas.height],
+				0.2*canvas.width,0.02*canvas.height);
+		_uiMain.AddChild(modelPanel);
+		modelPanel.setStartPos([-0.47*canvas.width,-0.18*canvas.height,-100]);
+
+		
+		// popUp panel test  */
+		
+		var popupPanel = new PopupPanel("PopupPanel",0.2*canvas.width,0.05*canvas.height,"images/0.png");
+		_uiMain.AddChild(popupPanel);
+		popupPanel.SetDisplay(false,null);
+        
+		var selectedModel = null;
+		
+ 		var selected = function(data){
+ 			var vector = popupPanel.mouse2screen([data[0],data[1]]);
+ 			popupPanel.SetDisplay(true,[vector[0],vector[1],-40]);
+ 			selectedModel = data[2];
+		}
+		HalfMoon.SysEvent.Subscribe("OnSceneObjSelect",this,selected); 
+		
+		
+		var popLeft = function(data){
+			selectedModel.transform.Move([-30,0,0]);
+		}
+		HalfMoon.SysEvent.Subscribe("PopUpPanel:PopLeft:OnBtnClick",this,popLeft);
+		
+		var popRight = function(data){
+			selectedModel.transform.Move([30,0,0]);
+		}
+		HalfMoon.SysEvent.Subscribe("PopUpPanel:PopRight:OnBtnClick",this,popRight);
+		
+		var popUp = function(data){
+			selectedModel.transform.Move([0,0,-30]);
+		}
+		HalfMoon.SysEvent.Subscribe("PopUpPanel:PopUp:OnBtnClick",this,popUp);
+		
+		var popDown = function(data){
+			selectedModel.transform.Move([0,0,30]);
+		}
+		HalfMoon.SysEvent.Subscribe("PopUpPanel:PopDown:OnBtnClick",this,popDown);
+		
+		var popRotate = function(data){
+			selectedModel.transform.Rotate([0,Math.degree2Radian(-90),0]);
+		}
+		HalfMoon.SysEvent.Subscribe("PopUpPanel:PopRotate:OnBtnClick",this,popRotate);
+		
+		/* End popUp panel test  */
+		
+ 		if( /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent) ) {
+			
+		} else { 
+
+	        var upArrow = new UIBtn("test1",0.04*canvas.width,0.04*canvas.width,"images/up.png");
+	        modelPanel.AddChild(upArrow);
+	  		upArrow.setStartPos([-0.45*canvas.width,-0.2*canvas.height,0]);
+	  		modelPanel.arrows.push(upArrow);
+			
+			var downArrow = new UIBtn("test2",0.04*canvas.width,0.04*canvas.width,"images/down.png");
+	        modelPanel.AddChild(downArrow);
+	  		downArrow.setStartPos([-0.4*canvas.width,-0.2*canvas.height,0]);
+	  		modelPanel.arrows.push(downArrow);
+	  		
+			var leftArrow = new UIBtn("test3",0.04*canvas.width,0.04*canvas.width,"images/left.png");
+	        modelPanel.AddChild(leftArrow);
+			leftArrow.setStartPos([-0.35*canvas.width,-0.2*canvas.height,0]); 
+			modelPanel.arrows.push(leftArrow);
+			
+	 		var rightArrow = new UIBtn("test4",0.04*canvas.width,0.04*canvas.width,"images/right.png");
+	        modelPanel.AddChild(rightArrow);
+			rightArrow.setStartPos([-0.3*canvas.width,-0.2*canvas.height,0]); 
+			modelPanel.arrows.push(rightArrow);
+ 	   } 
+ 
+ 		HalfMoon.loader.LoadJSON("models/UIConfigure3.json",function(json){
+        	
+        	UIinit = json;
+        	
+        	modelPanel.rowPointer = UIinit.rowPointer;
+        	
+         	for(var i = 0; i < UIinit.Row.length; i++) {
+       			var row = new UIRow(UIinit.Row[i].name, -1-i);
+         		row.colPointer = UIinit.Row[i].colPointer;		
+         		row.moveDis = -UIinit.Row[i].colPointer;
+         		row.moveDis1 = -UIinit.rowPointer;
+         		modelPanel.moveDis2 = -UIinit.rowPointer;
+         		for(var j = 0; j < UIinit.Row[i].objects.length; j++) {
+	                if(typeof UIinit.Row[i].objects[j] == 'string') {
+	                	var obj = new ModelBtn(UIinit.Row[i].name+j, modelPanel.size, modelPanel.size, UIinit.UIPath+UIinit.Row[i].objects[j]);
+	                	
+	                } else {
+	            		var	objJson = {ObjNm:UIinit.Row[i].name+"Obj"+j,ShapeNm:UIinit.Row[i].name+"Shape"+j,
+	            				Transform:UIinit.Row[i].name+"Trans"+j,Material:UIinit.Row[i].objects[j].material,
+	            				TexturePath:UIinit.TexturePath,
+	            				Texture:UIinit.Row[i].objects[j].texture,
+	            				Shape:UIinit.ModelPath+UIinit.Row[i].objects[j].shape, 
+	            				renderObj: renderer};
+	       				var obj = new ModelBtn(UIinit.Row[i].name+j, modelPanel.size, modelPanel.size, objJson);
+	       				//OnBtnDragOverEvent
+	       				obj.draggable.OnBtnDragOverEvent.subscribe("OnBtnDragOver",obj,draggableBtnDragging); 
+	       				//draggableBtnDragEnding
+	       				obj.draggable.OnBtnDragEndEvent.subscribe("OnBtnDragEnd",obj,draggableBtnDragEnding);
+	                }
+
+         		 	var x1 = modelPanel.startPoint[0];
+			    	var x2 = j*modelPanel.distance + i*modelPanel.distance2;
+			    	var x3 = row.moveDis*modelPanel.distance + row.moveDis1*modelPanel.distance2; 
+			       	var y1 = modelPanel.startPoint[1];
+			    	var y2 = i*modelPanel.distance2;
+			    	var y3 = modelPanel.moveDis2*modelPanel.distance2;
+			    	if(i >= UIinit.rowPointer)
+         				obj.setStartPos([x1 + x2 + x3, y1 + y2 + y3, row.z]);
+			    	else
+			    		obj.setStartPos([x1 + x2 + x3, y1 + y2 + y3, 20000]);
+			    	
+			    	obj.draggable.canMoveOutside = true;
+			    	modelPanel.AddChild(obj);
+			    	modelPanel.AddChild(obj.draggable);
+         			row.AddModel(obj);
+         		}
+         		modelPanel.AddRow(row);
+         	}
+         	
+      		for(var i = 1; i < modelPanel.category[modelPanel.rowPointer].rowContent.length-1; i++) {
+     			modelPanel.category[modelPanel.rowPointer].rowContent[i].SetActive(true);
+     		} 
+  	
+	    });
+
+  		if( /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent) ) {  
+	
+	        function handleSwipe(ev) {
+/* 	            console.log(ev); */
+	            // disable browser scrolling
+	            ev.gesture.preventDefault();
+	            
+	            if(!touchFlag) {
+
+		            switch(ev.type) {
+		            
+		                case 'swipeleft':
+		                	//document.getElementById("debug").innerHTML = "swipeleft"; 
+		                 	modelPanel.RowMove("left"); 
+		                    ev.gesture.stopDetect();
+		                    break;
+	
+		                case 'swiperight':
+		                	//document.getElementById("debug").innerHTML = "swiperight";
+		                 	modelPanel.RowMove("right"); 
+		                    ev.gesture.stopDetect();
+		                    break;
+		                    
+		                case 'swipeup':
+		                	//document.getElementById("debug").innerHTML = "swipup"; 
+		                 	modelPanel.ColMove("up"); 
+		                    ev.gesture.stopDetect();
+		                    break;
+	
+		                case 'swipedown':
+		                    //document.getElementById("debug").innerHTML = "swipedown"; 
+		                 	modelPanel.ColMove("down"); 
+		                    ev.gesture.stopDetect();
+		                    break;   
+		            }
+	            }
+	        };
+	
+	        function handleDrag(ev) {
+/* 	        	console.log(ev); */
+                ev.gesture.preventDefault();
+                ev.preventDefault = ev.gesture.preventDefault;
+                ev.clientX = ev.gesture.touches[0].pageX;
+                ev.clientY = ev.gesture.touches[0].pageY;
+                
+                switch(ev.type) {
+                
+                case 'touch': 
+                	canvas.onMobileClick(ev);
+						
+                	//document.getElementById("debug").innerHTML = "touch"; 
+
+                 	for(var i = modelPanel.category[modelPanel.rowPointer].colPointer; i < modelPanel.category[modelPanel.rowPointer].colPointer + 5; i++) {
+                		var tmpMatrix = mat4.create();
+                		//console.log(modelPanel.category[modelPanel.rowPointer].rowContent[i].draggable.isDrawable);
+		             	var screenPos = modelPanel.mouse2screen([ev.clientX,ev.clientY]);
+   			  			var vector = [screenPos[0],screenPos[1],-40];
+            			mat4.invert(tmpMatrix,modelPanel.category[modelPanel.rowPointer].rowContent[i].transform.worldMatrix);
+            			vec3.transformMat4(vector,vector,tmpMatrix);
+            			if(vector[0] >= 0 && vector[0] <= modelPanel.category[modelPanel.rowPointer].rowContent[i].width && vector[1] <= 0 && vector[1] >= -modelPanel.category[modelPanel.rowPointer].rowContent[i].height) {
+            				touchFlag = true;
+            				modelPanel.SetActive(true);
+            				modelPanel.category[modelPanel.rowPointer].rowContent[i].OnBtnRollIn();
+            			}
+                	}
+                	canvas.onMobileDragStart(ev);
+                    break; 
+                 
+                case 'drag':
+                	//document.getElementById("debug").innerHTML = "drag";
+   					canvas.onMobileMoveAndDragOver(ev);
+                    break; 
+       
+                case 'release':
+                	//document.getElementById("debug").innerHTML = "release"; 
+                	canvas.onMobileDragEnd(ev); 
+                	touchFlag = false;
+              		for(var i = modelPanel.category[modelPanel.rowPointer].colPointer; i < modelPanel.category[modelPanel.rowPointer].colPointer + 5; i++) {
+             			modelPanel.category[modelPanel.rowPointer].rowContent[i].OnBtnRollOut();
+             		}  
+                	break; 
+                
+                }
+	        };
+	
+ 			var touchFlag = false; 
+			
+	        $(canvas).hammer({ drag_max_touches:0})
+        	.on("touch drag release", handleDrag);
+
+	        $(canvas).hammer({ drag_lock_to_axis: true })
+	        .on("swipeup swipedown swipeleft swiperight", handleSwipe);
+
+  		} else {  
+
+			leftArrow.OnBtnClick = function(btn){
+				modelPanel.RowMove("left");
+	
+			};
+			leftArrow.OnBtnClickEvent.subscribe("OnBtnClick",leftArrow,leftArrow.OnBtnClick); 
+			
+			rightArrow.OnBtnClick = function(btn){
+				
+				modelPanel.RowMove("right");
+	
+			};
+			rightArrow.OnBtnClickEvent.subscribe("OnBtnClick",rightArrow,rightArrow.OnBtnClick); 
+	
+			downArrow.OnBtnClick = function(btn){
+				
+				modelPanel.ColMove("down");
+	            
+			
+			};
+			downArrow.OnBtnClickEvent.subscribe("OnBtnClick",downArrow,downArrow.OnBtnClick); 
+			
+			upArrow.OnBtnClick = function(btn){
+				
+				modelPanel.ColMove("up");
+	
+			};
+			upArrow.OnBtnClickEvent.subscribe("OnBtnClick",upArrow,upArrow.OnBtnClick); 
+  		}  
+
+
+
+		
+	};
+		
+		HalfMoon.time.isRunning = true;
+		
+		HalfMoon.tick();
+			
+		function resizeCanvas() {
+			   // only change the size of the canvas if the size it's being displayed
+			   // has changed.
+			   if (canvas.width != canvas.clientWidth ||
+			       canvas.height != canvas.clientHeight) {
+				     // Change the size of the canvas to match the size it's being displayed
+				     var tempWidth = canvas.width;
+			         var tempHeight = canvas.height;
+				     canvas.width = canvas.clientWidth;
+				     canvas.height = canvas.clientHeight; 
+				     HalfMoon.SysEvent.Publish("CanvasResize:",[canvas.width,canvas.height,canvas.width/tempWidth,canvas.height/tempHeight]); 
+			   }
+		};
+		window.addEventListener( 'resize', resizeCanvas, false );
+	};
+
+
+</script>
+
+<style type="text/css">
+    #debug {
+        position:absolute;
+        top:250px;
+        left:150px;
+        font-size:2em;
+        color: white;
+    }
+    #debug1 {
+        position:absolute;
+        top:200px;
+        left:150px;
+        font-size:2em;
+        color: white;
+    } 
+    #debug2 {
+        position:absolute;
+        top:150px;
+        left:150px;
+        font-size:2em;
+        color: white;
+    }
+</style>
+<body onload="main();">
+    <canvas id="glcanvas" style="border: none;" draggable="true""></canvas>
+     <div id="debug"></div>
+     <div id="debug1"></div>
+     <div id="debug2"></div>
+</body>
+
+</html>

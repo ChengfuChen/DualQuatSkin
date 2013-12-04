@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Insert title here</title>
+</head>
+
+<script>
+	//Syntax: asyncEval(code[, listener])
+	
+	var asyncEval = (function () {
+	
+		var workers = [],jobCollection = [];
+		var workerNm = "Loader";
+		var MAXCONCURRENT = 3;
+		/* var worker = new Worker("worker.js");
+		worker.id = "Loader0";
+		workers.push(worker);
+		worker = new Worker("worker.js");
+		worker.id = "Loader1";
+		workers.push(worker);
+		worker = new Worker("worker.js");
+		worker.id = "Loader2";
+		workers.push(worker);  */
+		
+		
+		var idleWorkerIndex = [];
+		/* 
+		idleWorkerIndex.push(0);
+		idleWorkerIndex.push(1);
+		idleWorkerIndex.push(2);
+		 */
+		
+		for(var i=0;i<MAXCONCURRENT;i++){
+			var worker = new Worker("worker.js");
+			worker.id = workerNm+i;
+			workers.push(worker);
+			idleWorkerIndex.push(i);
+		}
+
+		var cls = function (method,path, callBack) {
+			self = this;
+	
+			this.doJob = function(job){
+				if(idleWorkerIndex.length>0){
+					var index = idleWorkerIndex.pop();
+					workers[index].postMessage({
+					      "jobID": job.id,
+					      "workerIndex":index,
+					      "method": job.method,
+					      "path":job.path
+				    });
+
+					job.status = "processing";
+				};
+			};
+			this.findJob = function(){
+				for(var index in jobCollection)
+					if(jobCollection[index].status=="pending")
+						return jobCollection[index];
+				
+				return null;
+			};
+			for(var i in workers)
+				workers[i].onmessage = function (event) {
+			    	if (jobCollection[event.data.jobID]) { 
+			    		jobCollection[event.data.jobID].
+			    			callBack(event.data.jobID,workers[event.data.workerIndex]["id"],event.data.value); 
+			    	}
+			    	jobCollection[event.data.jobID].status = "done";
+					idleWorkerIndex.push(event.data.workerIndex);
+			    	var job = self.findJob();
+			    	if(job)
+			    		self.doJob(job);
+				};
+			
+			var job={};
+			job.id = jobCollection.length;
+			job.status = "pending";
+			job.method = method;job.path = path;job.callBack = callBack;
+			jobCollection.push(job);
+			var job = this.findJob();
+	    	if(job)
+	    		self.doJob(job);
+		};
+	 	
+		return cls; 
+	 
+	})();
+
+
+	var main = function(){
+		asyncEval("GET","worker.js", function (id,workerID,sMessage) {
+		    console.log(id+":"+workerID+"|"+sMessage);
+		});
+		
+		asyncEval("GET","worker.js", function (id,workerID,sMessage) {
+			console.log(id+":"+workerID+"|"+sMessage);
+		});
+		
+		asyncEval("GET","worker.js", function (id,workerID,sMessage) {
+			console.log(id+":"+workerID+"|"+sMessage);
+		});
+		asyncEval("GET","worker.js", function (id,workerID,sMessage) {
+			console.log(id+":"+workerID+"|"+sMessage);
+		});
+	};
+</script>
+<body onload ="main()">
+
+</body>
+</html>

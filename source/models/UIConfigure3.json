@@ -1,0 +1,37 @@
+{
+    "Row" : [
+    		{ "name" : "tables", "objects" :  ["more.png", 
+                                               {"texture" : {"diffCol":"woodCol.png","ambOcc":"wardrope.jpg"}, 
+                                               	"shape" : "wardrope.obj", "material" : "default"}, 
+                                               	 {"texture" : {"diffCol":"woodCol.png","ambOcc":"bed90x200.jpg"}, 
+                                                "shape" : "bed90x200.obj", "material" : "default"}, 
+                                               {"texture" : {"diffCol":"woodCol.png","ambOcc":"cabinet.jpg"},
+                                                "shape" : "cabinet.obj", "material" : "default"}, 
+                                               {"texture" : {"diffCol":"woodCol.png","ambOcc":"bed90x200.jpg"}, 
+                                                "shape" : "bed90x200.obj", "material" : "default"},
+                                              {"texture" : {"diffCol":"woodCol.png","ambOcc":"cabinet.jpg"},
+                                                "shape" : "cabinet.obj", "material" : "default"}, 
+                                               {"texture" : {"diffCol":"woodCol.png","ambOcc":"bed90x200.jpg"}, 
+                                                "shape" : "bed90x200.obj", "material" : "default"},
+                                               {"texture" : {"diffCol":"woodCol.png","ambOcc":"cabinet.jpg"},
+                                                "shape" : "cabinet.obj", "material" : "default"},  
+                                               "more.png"], "colPointer" : 1 }, 
+             { "name" : "chairs", "objects" :  ["more.png", 
+                                                {"texture" : {"diffCol":"woodCol.png","ambOcc":"wardrope.jpg"}, 
+                                               	"shape" : "wardrope.obj", "material" : "default"}, 
+                                               	 {"texture" : {"diffCol":"woodCol.png","ambOcc":"bed90x200.jpg"}, 
+                                                "shape" : "bed90x200.obj", "material" : "default"}, 
+                                               {"texture" : {"diffCol":"woodCol.png","ambOcc":"cabinet.jpg"},
+                                                "shape" : "cabinet.obj", "material" : "default"}, 
+                                               {"texture" : {"diffCol":"woodCol.png","ambOcc":"bed90x200.jpg"}, 
+                                                "shape" : "bed90x200.obj", "material" : "default"},
+                                              
+                                               {"texture" : {"diffCol":"woodCol.png","ambOcc":"cabinet.jpg"},
+                                                "shape" : "cabinet.obj", "material" : "default"},  
+                                               "more.png"], "colPointer" : 1 }
+     	],
+    "rowPointer" : 0,
+    "ModelPath": "models/",
+    "TexturePath" : "models/",
+    "UIPath" : "images/"
+}

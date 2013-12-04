@@ -1,0 +1,457 @@
+<html>
+
+<head>
+<title>HalfMoon v0.0.2</title>
+
+<style>
+	body {
+		background-color: rgb(200,200,200);
+		width: 100%;
+		height: 100%;
+		margin: 0px;
+		overflow: hidden;
+	}
+    #glcanvas {
+        width: 100%;
+        height: 100%;
+      }
+</style>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<script type="text/javascript" src="jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="gl-matrix.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="HalfMoon_src/HalfMoon.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/event.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/eventDefine.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/graphics.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/renderer.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/material.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/texture.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/obj.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/camera.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/pangpang.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quad.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadRenderBuffer.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/shape.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/transform.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animationSource.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animationChannel.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animation.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/UI/UIMain.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/ModelBtn.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIPanel.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIDraggable.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIObject.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIBtn.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIBase.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIDefine.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement3D.js"></script>
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec2 aTextureCoord;
+    attribute vec3 aVertexNormal;
+
+ 	uniform bool uFlipY;
+
+    uniform mat4 uMMatrix;
+    uniform mat4 uVMatrix;
+    uniform mat4 uPMatrix;
+    uniform mat3 uNMatrix;
+
+    varying vec2 vTextureCoord;
+    varying vec3 vTransformedNormal;
+    varying vec4 vPosition;
+
+    void main(void) {
+        vPosition = uVMatrix*uMMatrix * vec4(aVertexPosition, 1.0);
+        gl_Position = uPMatrix * vPosition;
+
+		if(uFlipY)	vTextureCoord = aTextureCoord*vec2(1,-1);
+        else		vTextureCoord = aTextureCoord;
+        vTransformedNormal = uNMatrix * aVertexNormal;
+    }
+</script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+
+    varying vec2 vTextureCoord;
+    varying vec3 vTransformedNormal;
+    varying vec4 vPosition;
+
+    uniform sampler2D uSampler;
+
+
+    void main(void) {
+        vec4 fragmentColor;
+        fragmentColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+        gl_FragColor = vec4(fragmentColor.rgb, fragmentColor.a);
+    }
+</script>
+
+<script id="per-fragment-lighting-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec2 vTextureCoord;
+    varying vec3 vTransformedNormal;
+    varying vec4 vPosition;
+
+    uniform float uMaterialShininess;
+
+    uniform bool uShowSpecularHighlights;
+    uniform bool uUseLighting;
+    uniform bool uUseTextures;
+
+    uniform vec3 uAmbientColor;
+
+    uniform vec3 uPointLightingLocation;
+    uniform vec3 uPointLightingSpecularColor;
+    uniform vec3 uPointLightingDiffuseColor;
+
+    uniform sampler2D uSampler;
+
+
+    void main(void) {
+        vec3 lightWeighting;
+        if (!uUseLighting) {
+            lightWeighting = vec3(1.0, 1.0, 1.0);
+        } else {
+            vec3 lightDirection = normalize(uPointLightingLocation - vPosition.xyz);
+            vec3 normal = normalize(vTransformedNormal);
+
+            float specularLightWeighting = 0.0;
+            if (uShowSpecularHighlights) {
+                vec3 eyeDirection = normalize(-vPosition.xyz);
+                vec3 reflectionDirection = reflect(-lightDirection, normal);
+
+                specularLightWeighting = pow(max(dot(reflectionDirection, eyeDirection), 0.0), uMaterialShininess);
+            }
+
+            float diffuseLightWeighting = max(dot(normal, lightDirection), 0.0);
+            lightWeighting = uAmbientColor
+                + uPointLightingSpecularColor * specularLightWeighting
+                + uPointLightingDiffuseColor * diffuseLightWeighting;
+        }
+
+        vec4 fragmentColor;
+        if (uUseTextures) {
+            fragmentColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+        } else {
+            fragmentColor = vec4(1.0, 1.0, 1.0, 1.0);
+        }
+        gl_FragColor = vec4(fragmentColor.rgb * lightWeighting, fragmentColor.a);
+    }
+</script>
+
+<script id="per-fragment-lighting-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec3 aVertexNormal;
+    attribute vec2 aTextureCoord;
+
+    uniform mat4 uMMatrix;
+    uniform mat4 uVMatrix;
+    uniform mat4 uPMatrix;
+    uniform mat3 uNMatrix;
+
+    varying vec2 vTextureCoord;
+    varying vec3 vTransformedNormal;
+    varying vec4 vPosition;
+
+
+    void main(void) {
+        vPosition = uVMatrix*uMMatrix * vec4(aVertexPosition, 1.0);
+        gl_Position = uPMatrix * vPosition;
+        vTextureCoord = aTextureCoord;
+        vTransformedNormal = uNMatrix * aVertexNormal;
+    }
+</script>
+
+
+
+
+
+</head>
+
+<script type = "text/javascript">
+	function main(){
+
+	    var loader = new Loader();
+		var canvas = document.getElementById("glcanvas");
+
+	    //canvas.clientWidth and canvas.clientHeight is the size of canvas
+	    //canvas.width and canvas.height is the size of draw buffer
+		//canvas.width == gl.vewportWidth
+	    canvas.width = canvas.clientWidth;
+	    canvas.height = canvas.clientHeight;
+	    
+		var cam = new Camera( {isPersp:true,fov:Math.degree2Radian(45), near:0.1,far:100.0,name:"Persp",
+											width: canvas.width,height: canvas.height});
+		//HalfMoon.UIRoot.uiCam = cam;
+	    var rendererParams = { ID: "renderView", canvas: canvas, 
+	              Height: canvas.clientWidth, Width: canvas.clientHeight,cam:cam};
+		
+		var renderer = new Renderer(rendererParams);
+		renderer.Set({blend:false,bgColor : [0.05,0.05,0.05,1.0]});
+		
+		HalfMoon.initialize(renderer);
+		
+/*-----------------------------------UI testing-------------------------------------------*/		
+		var _uiMain = new UIMain(canvas);
+		
+/* 		var debug = new UIDraggable("debug",100,100,"images/tables/table.png");
+		_uiMain.AddChild(debug);
+		debug.SetParent(HalfMoon.UIRoot);
+		debug.transform.MoveTo([0,0,0]); */
+		
+/*         var upArrow = new UIBtn("test1",64,64,"images/up.png");
+		_uiMain.AddChild(upArrow);
+		upArrow.SetParent(HalfMoon.UIRoot); 
+		upArrow.transform.MoveTo([-650,-80,0]);
+		
+		var downArrow = new UIBtn("test2",64,64,"images/down.png");
+		_uiMain.AddChild(downArrow);
+		downArrow.SetParent(HalfMoon.UIRoot);
+  		downArrow.transform.MoveTo([-550,-80,0]);
+  		
+		var leftArrow = new UIBtn("test3",64,64,"images/left.png");
+		_uiMain.AddChild(leftArrow);
+		leftArrow.SetParent(HalfMoon.UIRoot);
+		leftArrow.transform.MoveTo([-450,-80,0]); 
+		
+ 		var rightArrow = new UIBtn("test4",64,64,"images/right.png");
+		_uiMain.AddChild(rightArrow);
+		rightArrow.SetParent(HalfMoon.UIRoot);
+		rightArrow.transform.MoveTo([-350,-80,0]);  */
+		
+		var table = new ModelBtn("table",80,80,"images/tables/table.png");
+		table.setStart([-650,-420,-1,300,20]);
+		_uiMain.AddChild(table);
+		table.SetParent(HalfMoon.UIRoot);
+		table.SetActive(true);
+ 		/* var uiPanel = new UIPanel(80,[-650,-420],300,20);
+        
+ 		var z = -1;
+ 		
+		var tables = new UIRow("tables", z);
+
+		for(var i = 0; i < 10; i++) {
+			var table = new ModelBtn("table"+i,uiPanel.size,uiPanel.size,"images/tables/table.png");
+			table.setStart([uiPanel.startPoint[0] + i*uiPanel.distance,uiPanel.startPoint[1],tables.z]);
+			_uiMain.AddChild(table);
+			table.SetParent(HalfMoon.UIRoot);
+			tables.AddModel(table);
+		}
+		uiPanel.AddRow(tables);
+		
+		var chairs = new UIRow("chairs", z - 1);
+
+		for(var i = 0; i < 10; i++) {
+			var chair = new ModelBtn("chair"+i,uiPanel.size,uiPanel.size,"images/chairs/chair.png");
+			chair.setStart([uiPanel.startPoint[0] + i*uiPanel.distance + uiPanel.distance2,uiPanel.startPoint[1] + uiPanel.distance2,chairs.z]);
+			_uiMain.AddChild(chair);
+			chair.SetParent(HalfMoon.UIRoot);
+			chairs.AddModel(chair);
+		}
+		uiPanel.AddRow(chairs);
+		
+		var tables2 = new UIRow("tables2", z - 2);
+		
+		for(var i = 0; i < 10; i++) {
+			var table2 = new ModelBtn("table2"+i,uiPanel.size,uiPanel.size,"images/tables/table.png");
+			table2.setStart([uiPanel.startPoint[0] + i*uiPanel.distance + 2*uiPanel.distance2,uiPanel.startPoint[1] + 2*uiPanel.distance2,tables2.z]);
+			_uiMain.AddChild(table2);
+			table2.SetParent(HalfMoon.UIRoot);
+			tables2.AddModel(table2);
+		}
+		uiPanel.AddRow(tables2);
+		
+		var chairs2 = new UIRow("chairs2", z - 3);
+		
+		for(var i = 0; i < 10; i++) {
+			var chair2 = new ModelBtn("chair2"+i,uiPanel.size,uiPanel.size,"images/chairs/chair.png");
+			chair2.setStart([uiPanel.startPoint[0] + i*uiPanel.distance + 3*uiPanel.distance2,uiPanel.startPoint[1] + 3*uiPanel.distance2,chairs2.z]);
+			_uiMain.AddChild(chair2);
+			chair2.SetParent(HalfMoon.UIRoot);
+			chairs2.AddModel(chair2);
+		}
+		uiPanel.AddRow(chairs2);
+		
+  		for(var i = 0; i < uiPanel.category[uiPanel.rowPointer].rowContent.length; i++) {
+ 			uiPanel.category[uiPanel.rowPointer].rowContent[i].SetActive(true);
+ 		} */
+	
+		
+/* 		leftArrow.OnBtnClick = function(btn){
+			
+			uiPanel.category[uiPanel.rowPointer].RowMove("left", 300);
+
+			for(var i = 0; i < uiPanel.category[uiPanel.rowPointer].rowContent.length; i++) {
+		    	var a = uiPanel.startPoint[0];
+		    	var b = i*uiPanel.distance;
+		    	var c = uiPanel.category[uiPanel.rowPointer].moveDis;
+		    	
+		    	uiPanel.category[uiPanel.rowPointer].rowContent[i].setTarget([a + b + c, uiPanel.startPoint[1],0]);
+
+		    }
+		};
+		leftArrow.OnBtnClickEvent.subscribe("OnBtnClick",leftArrow,leftArrow.OnBtnClick); 
+		
+		rightArrow.OnBtnClick = function(btn){
+			
+			uiPanel.category[uiPanel.rowPointer].RowMove("right", 300);
+
+			for(var i = 0; i < uiPanel.category[uiPanel.rowPointer].rowContent.length; i++) {
+		    	var a = uiPanel.startPoint[0];
+		    	var b = i*uiPanel.distance;
+		    	var c = uiPanel.category[uiPanel.rowPointer].moveDis;
+		    	
+		    	uiPanel.category[uiPanel.rowPointer].rowContent[i].setTarget([a + b + c, uiPanel.startPoint[1],0]);
+
+		    }
+		};
+		rightArrow.OnBtnClickEvent.subscribe("OnBtnClick",rightArrow,rightArrow.OnBtnClick); 
+
+		downArrow.OnBtnClick = function(btn){
+			
+			uiPanel.ColMove("down");
+            
+			for(i = 0; i < uiPanel.category.length; i++) {
+		    	var y1 = uiPanel.startPoint[1];
+		    	var y2 = i*uiPanel.distance2;
+		    	var y3 = uiPanel.moveDis2;
+		    	var z = uiPanel.category[i].z
+				for(j = 0; j < uiPanel.category[i].rowContent.length; j++) {
+				 	var x1 = uiPanel.startPoint[0];
+			    	var x2 = j*uiPanel.distance + i*uiPanel.distance2;
+			    	var x3 = uiPanel.category[i].moveDis + uiPanel.category[i].moveDis1;
+			    	if(i < uiPanel.rowPointer)
+			    		uiPanel.category[i].rowContent[j].setTarget([x1 + x2 + x3, y1 + y2 + y3, 20000]);
+			    	else
+				    	uiPanel.category[i].rowContent[j].setTarget([x1 + x2 + x3, y1 + y2 + y3, z]);
+				}
+			}
+			
+			
+			
+		};
+		downArrow.OnBtnClickEvent.subscribe("OnBtnClick",downArrow,downArrow.OnBtnClick); 
+		
+		upArrow.OnBtnClick = function(btn){
+			
+			uiPanel.ColMove("up");
+            
+			for(i = 0; i < uiPanel.category.length; i++) {
+		    	var y1 = uiPanel.startPoint[1];
+		    	var y2 = i*uiPanel.distance2;
+		    	var y3 = uiPanel.moveDis2;
+		    	var z = uiPanel.category[i].z
+				for(j = 0; j < uiPanel.category[i].rowContent.length; j++) {
+				 	var x1 = uiPanel.startPoint[0];
+			    	var x2 = j*uiPanel.distance + i*uiPanel.distance2;
+			    	var x3 = uiPanel.category[i].moveDis + uiPanel.category[i].moveDis1;
+			    	if(i < uiPanel.rowPointer)
+			    		uiPanel.category[i].rowContent[j].setTarget([x1 + x2 + x3, y1 + y2 + y3, 20000]);
+			    	else
+				    	uiPanel.category[i].rowContent[j].setTarget([x1 + x2 + x3, y1 + y2 + y3, z]);
+				}
+			}
+		};
+		upArrow.OnBtnClickEvent.subscribe("OnBtnClick",upArrow,upArrow.OnBtnClick);  */
+		
+		
+/*-----------------------------------UI testing-------------------------------------------*/		
+
+		var shape = new Shape("pangpangShape");
+	    loader.load("Teapot.json",function(data){
+	    	shape.load(data);
+	    });
+	    
+		var trans = new Transform("pangpangTransform");
+		var obj = new Pangpang("pangpang",shape,trans,HalfMoon.materials["default"]);//HalfMoon.materials["quad"]
+		obj.transform.MoveTo([0,0,-40]);  
+	    
+		
+		
+/*  		var rot = 5;
+ 		var A = [-2,500,-40];
+ 		var B = [100,100,-40];
+ /* 		downArrow.transform.MoveTo(B); */ 
+
+ /*-----------------------------------UI Animation------------------------------------------*/		
+/*   		HalfMoon.animation = function(){
+			//rot++;
+			var pos = downArrow.transform.GetPosition();
+			var delta = [B[0]-pos[0],B[1]-pos[1],B[2]-pos[2]];
+			delta = [delta[0]/20,delta[1]/20,delta[2]/20];
+			downArrow.transform.move(delta);
+			//downArrow.transform.Rotate([0,Math.degree2Radian(rot),0]);
+		}   */
+/*-----------------------------------UI Animation-------------------------------------------*/
+
+ 		var quad = new Quad();
+		quad.material = HalfMoon.materials["quad"];
+		quad.transform.MoveTo([-2,-2,-4]);
+		
+		quad = new Quad();
+		quad.material = HalfMoon.materials["quad"];
+		quad.transform.MoveTo([0,-2,-4]);
+		
+		quad = new Quad();
+		quad.material = HalfMoon.materials["quad"];
+		quad.transform.MoveTo([2,-2,-4]);
+		
+		
+		quad = new Quad();
+		quad.material = HalfMoon.materials["quad"];
+		quad.transform.MoveTo([-2,-2,-6]);
+		
+		
+		quad = new Quad();
+		quad.material = HalfMoon.materials["quad"];
+		quad.transform.MoveTo([0,-2,-6]); 
+		
+		quad = new QuadRenderBuffer("quad",[obj],256,256);
+		quad.material = HalfMoon.materials["quad"];
+		quad.transform.MoveTo([2,-2,-6]);
+		
+		cam.transform.MoveTo([0.4,0,0]);
+ 		var aniSource = new AnimationSource(null,function(time){
+			return 2*Math.sin(time*2);
+		});
+		var ani = new Animation("test");
+		ani.Import(new AnimationChannel(aniSource,cam.transform.name,"SetTz")); 
+		
+		HalfMoon.time.isRunning = true;
+		
+		HalfMoon.tick();
+		
+		
+		
+		
+		
+		function resizeCanvas() {
+			   // only change the size of the canvas if the size it's being displayed
+			   // has changed.
+			   if (canvas.width != canvas.clientWidth ||
+			       canvas.height != canvas.clientHeight) {
+				     // Change the size of the canvas to match the size it's being displayed
+				     canvas.width = canvas.clientWidth;
+				     canvas.height = canvas.clientHeight; 
+				     //HalfMoon.UserEvent.publish("CanvasResize:",[canvas.width,canvas.height]);
+				     HalfMoon.SysEvent.Publish("CanvasResize:",[canvas.width,canvas.height]);
+				     //renderer.initialize(rendererParams);
+			   }
+		};
+		window.addEventListener( 'resize', resizeCanvas, false );
+	};
+
+
+</script>
+<body onload="main();">
+    <canvas id="glcanvas" style="border: none;" draggable="true""></canvas>
+</body>
+
+</html>

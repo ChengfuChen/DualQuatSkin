@@ -1,0 +1,171 @@
+<html>
+
+<head>
+<title>HalfMoon v0.0.2</title>
+
+<style>
+	body {
+		background-color: rgb(200,200,200);
+		width: 100%;
+		height: 100%;
+		margin: 0px;
+		overflow: hidden;
+	}
+    #glcanvas {
+        width: 100%;
+        height: 100%;
+      }
+</style>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<script type="text/javascript" src="jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="gl-matrix.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="HalfMoon_src/HalfMoon.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/event.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/eventDefine.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/graphics.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/shader.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/renderer.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/renderHelper.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/material.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/texture.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/obj.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/camera.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/loader.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/dataManager.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/shapeHelper.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/pangpang.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quad.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadFullScreen.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadSSAO.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadSelect.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadRenderBuffer.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/shape.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/transform.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animationSource.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animationChannel.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animation.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/UI/UIMain.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIBase.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIDefine.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement3D.js"></script>
+
+
+
+</head>
+
+<script type = "text/javascript">
+	function main(){
+
+	    var canvas = document.getElementById("glcanvas");
+
+	    //canvas.clientWidth and canvas.clientHeight is the size of canvas
+	    //canvas.width and canvas.height is the size of draw buffer
+		//canvas.width == gl.vewportWidth
+	    canvas.width = canvas.clientWidth;
+	    canvas.height = canvas.clientHeight;
+	    
+		var cam = new Camera( {isPersp:true,fov:Math.degree2Radian(45), near:0.1,far:1000.0,name:"Persp",
+			width: canvas.width,height: canvas.height});
+		
+		var rendererParams = { ID: "renderView", canvas: canvas, 
+	              Height: canvas.clientWidth, Width: canvas.clientHeight,cam:cam};
+		
+		var renderer = new Renderer(rendererParams);
+		renderer.Set({blend:false,bgColor : [0.05,0.05,0.05,1.0]});
+		
+		HalfMoon.initialize(renderer);
+		
+		HalfMoon.loader.OnFinishLoadingScript = function(){
+
+		    
+		    var trans,obj,texture,shape,rot,A;
+		    rot = 3;
+
+	 		
+	 		
+		    shape = new Shape("pangpangShape");
+		    HalfMoon.loader.LoadModel("models/wardrope.obj",shape); 
+			trans = new Transform("pangpangTransform");
+			obj = new Pangpang("pangpang",shape,trans,
+					HalfMoon.materials["default"].clone());//HalfMoon.materials["quad"]
+			texture = new Texture(renderer.graphic.gl,"models/wardrope.jpg");//"models/wardrope.jpg");
+			obj.material.setTexture("diffCol",texture);
+	 		
+			A = [-200,0,0];
+	 		obj.transform.MoveTo(A);
+	 		obj.transform.ScaleTo([0.5,0.5,0.5]);
+	 		
+		    shape = new Shape("pangpangShape");
+		    HalfMoon.loader.LoadModel("models/wardrope.obj",shape); 
+			trans = new Transform("pangpangTransform");
+			obj = new Pangpang("pangpang",shape,trans,
+					HalfMoon.materials["default"].clone());//HalfMoon.materials["quad"]
+			texture = new Texture(renderer.graphic.gl,"models/wardrope.jpg");//"models/wardrope.jpg");
+			obj.material.setTexture("diffCol",texture);
+			
+			A = [-100,0,0];
+	 		obj.transform.MoveTo(A);
+	 		obj.transform.ScaleTo([0.5,0.5,0.5]);
+	 		
+		    shape = new Shape("pangpangShape");
+		    HalfMoon.loader.LoadModel("models/wardrope.obj",shape); 
+			trans = new Transform("pangpangTransform");
+			obj = new Pangpang("pangpang",shape,trans,
+					HalfMoon.materials["default"].clone());//HalfMoon.materials["quad"]
+			texture = new Texture(renderer.graphic.gl,"models/wardrope.jpg");//"models/wardrope.jpg");
+			obj.material.setTexture("diffCol",texture); 
+			
+			A = [0,0,0];
+	 		obj.transform.MoveTo(A);
+	 		obj.transform.ScaleTo([0.5,0.5,0.5]);
+	 		
+
+			var animation = function(time){
+
+				this.transform.Rotate([0,Math.degree2Radian(rot),0]);
+				if(this.transform.rotation[1]>10)
+					return true;
+			};
+			//var ani = new Animation("test",obj);
+			//ani.Set(animation);
+
+			
+			//cam.transform.MoveTo([0,0,300]);
+			cam.LookAt([0,200,300],[0,0,0],[0,1,0]);
+			
+		};
+		
+		HalfMoon.time.isRunning = true;
+		
+		HalfMoon.tick();
+		
+		
+		
+		
+		
+		function resizeCanvas() {
+			   // only change the size of the canvas if the size it's being displayed
+			   // has changed.
+			   if (canvas.width != canvas.clientWidth ||
+			       canvas.height != canvas.clientHeight) {
+				     // Change the size of the canvas to match the size it's being displayed
+				     canvas.width = canvas.clientWidth;
+				     canvas.height = canvas.clientHeight; 
+				     //HalfMoon.UserEvent.publish("CanvasResize:",[canvas.width,canvas.height]);
+				     HalfMoon.SysEvent.Publish("CanvasResize:",[canvas.width,canvas.height]);
+				     //renderer.initialize(rendererParams);
+			   }
+		};
+		window.addEventListener( 'resize', resizeCanvas, false );
+	};
+
+
+</script>
+<body onload="main();">
+    <canvas id="glcanvas" style="border: none;" draggable="true""></canvas>
+</body>
+
+</html>

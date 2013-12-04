@@ -1,0 +1,534 @@
+<html>
+
+<head>
+<title>HalfMoon v0.0.2</title>
+
+<style>
+	body {
+		background-color: rgb(200,200,200);
+		width: 100%;
+		height: 100%;
+		margin: 0px;
+		overflow: hidden;
+	}
+    #glcanvas {
+        width: 100%;
+        height: 100%;
+      }
+</style>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<script type="text/javascript" src="jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="gl-matrix.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="HalfMoon_src/HalfMoon.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/event.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/eventDefine.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/graphics.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/renderer.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/renderHelper.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/material.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Graphics/texture.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/obj.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/camera.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/shapeHelper.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/pangpang.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quad.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadFullScreen.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadSSAO.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadSelect.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Obj/quadRenderBuffer.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/shape.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Core/transform.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animationSource.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animationChannel.js"></script>
+<script type="text/javascript" src="HalfMoon_src/Animation/animation.js"></script>
+
+<script type="text/javascript" src="HalfMoon_src/UI/UIMain.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIBase.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIDefine.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement.js"></script>
+<script type="text/javascript" src="HalfMoon_src/UI/UIElement3D.js"></script>
+
+<script type="x-shader/x-vertex" id="showDepth-vs">    
+	attribute vec3 aVertexPosition;
+    attribute vec2 aTextureCoord;
+    attribute vec3 aVertexNormal;
+
+ 	uniform bool uFlipY;
+	uniform mat4 uPMatrix;
+	uniform mat4 uMMatrix;  	
+	uniform mat4 uVMatrix;
+	uniform mat4 uNMatrix;  	
+	uniform float uNear;
+	uniform float uFar;
+
+	varying vec3 vN;
+	varying vec2 vTextureCoord;
+	varying float depth;                                            
+	varying vec4 vVSPos;
+	void main() {	
+		mat4 mvMat = uVMatrix * uMMatrix;
+		gl_Position = uPMatrix*mvMat*vec4(aVertexPosition,1.0);		
+		vN = normalize((uNMatrix * vec4(aVertexNormal, 1.0)).xyz);
+		
+		//linear depth in camera space (0..far)
+		depth = (mvMat*vec4(aVertexPosition,1.0)).z/uFar;
+		
+		if(uFlipY)	{
+				vTextureCoord = aTextureCoord;
+				vTextureCoord.t = 1.0 - vTextureCoord.t;
+		}
+        else		
+				vTextureCoord = aTextureCoord;
+		vVSPos = mvMat * vec4(aVertexPosition,1.0);
+	}                        
+
+</script>
+<script type="x-shader/x-fragment" id="showDepth-fs"> 
+	#ifdef GL_ES
+	precision highp float;
+	#endif          
+	uniform float uNear;
+	uniform float uFar;
+
+	varying float depth;   
+	varying vec3 vN;     
+	varying vec4 vVSPos;  
+
+	//from http://spidergl.org/example.php?id=6
+	vec4 packDepth(const in float depth) {
+		const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+		const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+		vec4 res = fract(depth * bit_shift);
+		res -= res.xxyz * bit_mask;
+		return res;    		
+	}
+
+	void main() {         
+		gl_FragData[0] = packDepth(-depth);
+		gl_FragData[0].r = -depth/uFar;
+	}
+</script>  
+<script type="x-shader/x-vertex" id="ssao-vs">  
+    attribute vec3 aVertexPosition;
+    attribute vec2 aTextureCoord;
+    attribute vec3 aVertexNormal;
+	
+ 	uniform bool uFlipY;
+	uniform mat4 uPMatrix;
+	uniform mat4 uMMatrix;  	
+	uniform mat4 uVMatrix;
+	uniform mat4 uNMatrix;  
+
+	varying vec3 vNormal;
+	varying vec2 vTextureCoord;  
+
+	void main() {	
+		mat4 mvMat = uVMatrix * uMMatrix;
+		gl_Position = uPMatrix*mvMat*vec4(aVertexPosition,1.0);		
+		vNormal = (uNMatrix * vec4(aVertexNormal, 1.0)).xyz;
+		
+	   	vTextureCoord = aTextureCoord;
+		if(uFlipY)	{
+				vTextureCoord = aTextureCoord;
+				vTextureCoord.t = 1.0 - vTextureCoord.t;
+		}
+	}
+</script>
+<script type="x-shader/x-fragment" id="ssao-fs">  
+	#ifdef GL_ES
+	precision highp float;
+	#endif    
+	uniform sampler2D uDepthTex;
+	uniform sampler2D uNoiseTex;  
+	varying vec3 vNormal;
+
+	uniform mat4 uPMatrix;
+	uniform vec2 uNoiseScale;
+	uniform float uNear;
+	uniform float uFar;            
+	uniform float uFov;
+	uniform float uAspectRatio;    
+	uniform vec3 uKernel[16];   
+	
+	varying vec2 vTextureCoord;   
+
+	const int kernelSize = 16;  
+	const float radius = 0.1;      
+
+	float unpackDepth(const in vec4 rgba_depth) {
+		const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+		float depth = dot(rgba_depth, bit_shift);
+		return depth;
+	}                
+
+	vec3 getViewRay(vec2 tc) {
+		float hfar = 2.0 * tan(uFov/2.0) * uFar;
+		float wfar = hfar * uAspectRatio;    
+		vec3 ray = vec3(wfar * (tc.x - 0.5), hfar * (tc.y - 0.5), -uFar);    
+		return ray;                      
+	}         
+	           
+	//linear view space depth
+	float getDepth(vec2 coord) {                          
+		return unpackDepth(texture2D(uDepthTex, coord.xy));
+	}    
+	
+	void main() {          
+		vec2 screenPos = vec2(gl_FragCoord.x / 1024.0, gl_FragCoord.y / 512.0);		                 
+		//screenPos.y = 1.0 - screenPos.y;   
+		
+		
+		float linearDepth = getDepth(screenPos);          
+		vec3 origin = getViewRay(screenPos) * linearDepth;   
+				
+		vec3 normal = normalize(vNormal);   
+				
+		vec3 rvec = texture2D(uNoiseTex, screenPos.xy * uNoiseScale).xyz * 2.0 - 1.0;
+	    vec3 tangent = normalize(rvec - normal * dot(rvec, normal));
+	    vec3 bitangent = cross(normal, tangent);
+		mat3 tbn = mat3(tangent, bitangent, normal);        
+		
+		float occlusion = 0.0;
+		for(int i = 0; i < kernelSize; ++i) {    	 
+			vec3 sample = origin + (tbn * uKernel[i]) * radius;
+		    vec4 offset = uPMatrix * vec4(sample, 1.0);		
+			offset.xy /= offset.w;
+			offset.xy = offset.xy * 0.5 + 0.5;        
+		    float sampleDepth = -sample.z/uFar;
+			float depthBufferValue = getDepth(offset.xy);				              
+			float range_check = abs(linearDepth - depthBufferValue);
+			if (range_check < radius && depthBufferValue <= sampleDepth) {
+				occlusion +=  1.0;
+			}
+			
+		}         
+		   
+		occlusion = 1.0 - occlusion / float(kernelSize);
+                                   
+		vec3 lightPos = vec3(10.0, 10.0, 10.0);
+        vec3 L = normalize(lightPos);
+		float NdotL = abs(dot(normal, L));
+		vec3 diffuse = vec3(NdotL);
+		vec3 ambient = vec3(1.0);
+	    gl_FragColor.rgb = vec3((diffuse*0.2 + ambient*0.8) * occlusion);
+		//gl_FragColor.rgb = normal;
+	    gl_FragColor.a = 1.0;   
+	}
+</script>  
+<script type="x-shader/x-fragment" id="blur-fs">  
+	#ifdef GL_ES
+	precision highp float;
+	#endif    
+	uniform sampler2D uSampler;
+	uniform vec2 uTexelSize;
+	varying vec2 vTextureCoord; 	 	
+
+	void main() {
+		vec3 result = vec3(0.0);
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				vec2 offset = vec2(uTexelSize.x * float(j), uTexelSize.y * float(i));
+				result += texture2D(uSampler, vTextureCoord + offset).rgb;
+			}
+		}
+		       
+		gl_FragColor.rgb = vec3(result * 0.0625); 
+		gl_FragColor.a = 1.0;
+	}
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec2 aTextureCoord;
+    attribute vec3 aVertexNormal;
+
+ 	uniform bool uFlipY;
+
+    uniform mat4 uMMatrix;
+    uniform mat4 uVMatrix;
+    uniform mat4 uPMatrix;
+    uniform mat4 uNMatrix;
+
+    varying vec2 vTextureCoord;
+    varying vec3 vTransformedNormal;
+    varying vec4 vPosition;
+	
+	
+    void main(void) {
+        vPosition = uVMatrix*uMMatrix * vec4(aVertexPosition, 1.0);
+        gl_Position = uPMatrix * vPosition;
+		
+		
+		vTextureCoord = aTextureCoord;
+		if(uFlipY)	{
+				vTextureCoord.t = 1.0 - vTextureCoord.t;
+		}
+        vTransformedNormal = normalize((uNMatrix * vec4(aVertexNormal, 1.0)).xyz);
+    }
+</script>
+<script id="selectionShader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec2 aTextureCoord;
+    attribute vec3 aVertexNormal;
+
+ 	uniform bool uFlipY;
+
+    uniform mat4 uMMatrix;
+    uniform mat4 uVMatrix;
+    uniform mat4 uPMatrix;
+    uniform mat4 uNMatrix;
+
+    varying vec2 vTextureCoord;
+    varying vec3 vTransformedNormal;
+    varying vec4 vPosition;
+	
+	
+    void main(void) {
+        vPosition = uVMatrix*uMMatrix * vec4(aVertexPosition, 1.0);
+        gl_Position = uPMatrix * vPosition;
+		
+		
+		if(uFlipY)	{
+				vTextureCoord = aTextureCoord;
+				vTextureCoord.t = 1.0 - vTextureCoord.t;
+		}
+        else		vTextureCoord = aTextureCoord;
+        vTransformedNormal = normalize((uNMatrix * vec4(aVertexNormal, 1.0)).xyz);
+    }
+</script>
+<script id="selectionShader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec2 vTextureCoord;
+    varying vec3 vTransformedNormal;
+    varying vec4 vPosition;
+
+    uniform float uWidth;
+    uniform float uHeight;
+    uniform float uH;
+
+    uniform float uIndexX;
+    uniform float uIndexY;
+
+    void main(void) {
+        vec4 fragmentColor = vec4(0.2,0.5,0.0,1.0);
+		
+		float x = mod(vTextureCoord.s*uWidth,uH);
+		float y = mod(vTextureCoord.t*uHeight,uH);
+		if(x<0.1||y<0.1)
+			fragmentColor = vec4(0,0,0,1);
+
+		float indexX = floor(vTextureCoord.s*uWidth/uH);
+		float indexY = floor(vTextureCoord.t*uHeight/uH);
+
+		if(indexX==uIndexX&&indexY==uIndexY)
+			fragmentColor = vec4(1,0,0,1);
+
+		
+        gl_FragColor = fragmentColor;
+    }
+</script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec2 vTextureCoord;
+    varying vec3 vTransformedNormal;
+    varying vec4 vPosition;
+
+    uniform sampler2D uSampler;
+
+    void main(void) {
+        vec4 fragmentColor;
+        fragmentColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+        gl_FragColor = vec4(fragmentColor.rgb, fragmentColor.a);
+    }
+</script>
+
+<script id="per-fragment-lighting-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec2 vTextureCoord;
+    varying vec3 vTransformedNormal;
+    varying vec4 vPosition;
+
+    uniform float uMaterialShininess;
+
+    uniform bool uShowSpecularHighlights;
+    uniform bool uUseLighting;
+    uniform bool uUseTextures;
+
+    uniform vec3 uAmbientColor;
+
+    uniform vec3 uPointLightingLocation;
+    uniform vec3 uPointLightingSpecularColor;
+    uniform vec3 uPointLightingDiffuseColor;
+
+    uniform sampler2D uSampler;
+
+
+    void main(void) {
+        vec3 lightWeighting;
+        if (!uUseLighting) {
+            lightWeighting = vec3(1.0, 1.0, 1.0);
+        } else {
+            vec3 lightDirection = normalize(uPointLightingLocation - vPosition.xyz);
+            vec3 normal = normalize(vTransformedNormal);
+
+            float specularLightWeighting = 0.0;
+            if (uShowSpecularHighlights) {
+                vec3 eyeDirection = normalize(-vPosition.xyz);
+                vec3 reflectionDirection = reflect(-lightDirection, normal);
+
+                specularLightWeighting = pow(max(dot(reflectionDirection, eyeDirection), 0.0), uMaterialShininess);
+            }
+
+            float diffuseLightWeighting = max(dot(normal, lightDirection), 0.0);
+            lightWeighting = uAmbientColor
+                + uPointLightingSpecularColor * specularLightWeighting
+                + uPointLightingDiffuseColor * diffuseLightWeighting;
+        }
+
+        vec4 fragmentColor;
+        if (uUseTextures) {
+            fragmentColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+        } else {
+            fragmentColor = vec4(1.0, 1.0, 1.0, 1.0);
+        }
+        gl_FragColor = vec4(fragmentColor.rgb * lightWeighting, fragmentColor.a);
+    }
+</script>
+
+<script id="per-fragment-lighting-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec3 aVertexNormal;
+    attribute vec2 aTextureCoord;
+
+    uniform mat4 uMMatrix;
+    uniform mat4 uVMatrix;
+    uniform mat4 uPMatrix;
+    uniform mat4 uNMatrix;
+
+    varying vec2 vTextureCoord;
+    varying vec3 vTransformedNormal;
+    varying vec4 vPosition;
+
+
+    void main(void) {
+        vPosition = uVMatrix*uMMatrix * vec4(aVertexPosition, 1.0);
+        gl_Position = uPMatrix * vPosition;
+        vTextureCoord = aTextureCoord;
+        vTransformedNormal = normalize((uNMatrix * vec4(aVertexNormal, 1.0)).xyz);
+    }
+</script>
+
+
+
+
+
+</head>
+
+<script type = "text/javascript">
+	function main(){
+
+	    var loader = new Loader();
+		var canvas = document.getElementById("glcanvas");
+
+	    //canvas.clientWidth and canvas.clientHeight is the size of canvas
+	    //canvas.width and canvas.height is the size of draw buffer
+		//canvas.width == gl.vewportWidth
+	    canvas.width = canvas.clientWidth;
+	    canvas.height = canvas.clientHeight;
+	    
+		var cam = new Camera( {isPersp:true,fov:Math.degree2Radian(45), near:0.1,far:1000.0,name:"Persp",
+											width: canvas.width,height: canvas.height});
+		
+
+		
+		var rendererParams = { ID: "renderView", canvas: canvas, 
+	              Height: canvas.clientWidth, Width: canvas.clientHeight,cam:cam};
+		
+		var renderer = new Renderer(rendererParams);
+		renderer.Set({blend:false,bgColor : [0.05,0.05,0.05,1.0]});
+		
+		HalfMoon.initialize(renderer);
+		
+		
+ 		var _uiMain = new UIMain(canvas,new Camera({isPersp:false,fov:Math.degree2Radian(90), near:1.0,far:1000.0,
+ 				name:"UICam",width: canvas.width,height: canvas.height}));
+ 		
+ 		var _uiElement = new UIElement("testElement",64,64,"images/moon.gif");
+		_uiMain.AddChild(_uiElement);
+		_uiElement.SetParent(HalfMoon.UIRoot); 
+		_uiElement.transform.MoveTo([0,300,0]);
+ 		
+	
+		/*
+		var shape = new Shape("pangpangShape");
+  		loader.loadRaw("models/cabinet.obj",function(data){
+	    	shape.load(data);
+	    }); 
+ 	   	loader.load("models/cabinet.obj",shape); 
+	    shape.load(buildSphere(5)); 
+	    */
+	    
+	    var trans,obj,texture,shape;
+	    shape = new Shape("pangpangShape");
+ 	   	loader.load("models/wardrope.obj",shape); 
+		trans = new Transform("pangpangTransform");
+		obj = new Pangpang("pangpang",shape,trans,HalfMoon.materials["default"].clone());//HalfMoon.materials["quad"]
+		texture = new Texture(renderer.graphic.gl,"models/wardrope.jpg");
+		obj.material.setTexture(0,texture);
+		obj.isDrawable = false;
+		
+ 		var rot = 3;
+ 		var A = [-2,0,-120];
+ 		var B = [0,0,-320];
+ 		obj.transform.MoveTo(A);
+		
+
+		quad = new QuadSSAO(renderer.graphic.gl,canvas.width,canvas.height,[obj]);
+		quad.material = HalfMoon.materials["quad"];
+		quad.transform.MoveTo([0,0,-4]);
+		
+		
+
+		cam.transform.MoveTo([0,0,0]);
+ 		var aniSource = new AnimationSource(null,function(time){
+			return 0;//2*Math.sin(time*2);
+		});
+		var ani = new Animation("test",cam);
+		ani.Import(new AnimationChannel(aniSource,cam.transform.name,"SetTz")); 
+		
+		HalfMoon.time.isRunning = true;
+		
+		HalfMoon.tick();
+		
+		
+		
+		
+		
+		function resizeCanvas() {
+			   // only change the size of the canvas if the size it's being displayed
+			   // has changed.
+			   if (canvas.width != canvas.clientWidth ||
+			       canvas.height != canvas.clientHeight) {
+				     // Change the size of the canvas to match the size it's being displayed
+				     canvas.width = canvas.clientWidth;
+				     canvas.height = canvas.clientHeight; 
+				     //HalfMoon.UserEvent.publish("CanvasResize:",[canvas.width,canvas.height]);
+				     HalfMoon.SysEvent.Publish("CanvasResize:",[canvas.width,canvas.height]);
+				     //renderer.initialize(rendererParams);
+			   }
+		};
+		window.addEventListener( 'resize', resizeCanvas, false );
+	};
+
+
+</script>
+<body onload="main();">
+    <canvas id="glcanvas" style="border: none;" draggable="true""></canvas>
+</body>
+
+</html>
